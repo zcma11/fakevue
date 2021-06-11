@@ -26,6 +26,3 @@ export default class Dep {
     })
   }
 }
-
-// get --> render() new watch() --> get()render执行时获取了需要的数据 --> Dep()代表整个data --> dep里面添加了watcher，watcher里面有update --> watcher代表了什么
-// dep代表data，watcher代表引用 --> dep.depend 收集watcher，就是render --> watcher.add 收集dep

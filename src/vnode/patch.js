@@ -26,7 +26,9 @@ export default function patch (oldVnode, vnode) {
 
 function replaceElm (oldElm, elm) {
   const parent = oldElm.parentNode
-  const nextSibling = oldElm.nextSibling
-  parent.insertBefore(elm, nextSibling)
-  parent.removeChild(oldElm)
+  if (parent) {
+    const nextSibling = oldElm.nextSibling
+    parent.insertBefore(elm, nextSibling)
+    parent.removeChild(oldElm)
+  }
 }

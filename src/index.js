@@ -14,13 +14,13 @@ export default class FakeVue extends baseVue {
     super()
     this.id = id++
     this._vue = FakeVue
+    this.$options = options
+    this.$root = this
     this.init(options)
   }
 
   init (options) {
     if (isEmptyObj$1(options)) return
-    this.$options = options
-    this.$root = this
 
     // beforecreate
 
@@ -29,7 +29,7 @@ export default class FakeVue extends baseVue {
     initRender(this)
 
     // created
-    
+
     if (options.el) {
       this.$mount(options.el)
     }
@@ -61,21 +61,54 @@ export default class FakeVue extends baseVue {
     this._watcher = new Watcher(this, autoRun)
   }
 
-  _render() {
+  _render () {
     const render = this.$options.render
     return render.call(this, this.$createElement)
   }
 
   _update (vnode) {
-    console.log(vnode)
+    console.log('vm._render():vnode: ',vnode)
     // 更新保存的vnode
     const oldVnode = this._vnode
     this._vnode = vnode
-    
+
     if (!oldVnode) {
       this.$el = patch(this.$el, vnode)
     } else {
       this.$el = patch(oldVnode, vnode)
     }
+  }
+
+  $watch (key, cb, options = {}) {
+    let getter
+    if (typeof key === 'string') { //'a','a.b.c'
+      getter = parsePath(key)
+    } else if (typeof key === 'function') {
+      getter = key
+    }
+
+    // watcher 保存了getter方法， 内部value = getter() 相关的data的dep里面保存了watcher
+    // dep更新通知 watcher 执行value = getter(),之后会执行 cb
+    const watcher = new Watcher(this, getter, cb, options)
+    // immediate 立即执行一次 cb
+    if (options.immediate) {
+      try {
+        cb.call(this, watcher.value)
+      } catch (err) {
+        console.warn(err, `\n${cb}`)
+      }
+    }
+
+    return function unwatch () {
+      watcher.unwatch
+    }
+  }
+}
+
+function parsePath (exp) {
+  const keys = exp.split(`.`)
+  return function getter (val) {
+    keys.forEach(k => val = val[k])
+    return val
   }
 }

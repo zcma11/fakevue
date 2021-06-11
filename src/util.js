@@ -19,7 +19,7 @@ export const mergeObj = (from, to) => {
   return to
 }
 
-export const query = el => document.querySelector(el) ?? createDiv()
+export const query = el => document.querySelector(el) ?? document.createElement('div')
 
 export const createDiv = () => document.createElement('div')
 
@@ -39,6 +39,19 @@ export function createCache (fn) {
   }
 }
 
-export function insert (a) {
-  
+export const inBrowser = typeof window !== undefined
+
+let _isServer
+export function isServerRendering () {
+  if (_isServer === undefined) {
+    _isServer =
+      !inBrowser &&
+      typeof global !== undefined &&
+      global['process'] &&
+      global['process'].env
+  }
+
+  return _isServer
 }
+
+export const noop = ()=>{}

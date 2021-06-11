@@ -1,35 +1,45 @@
-import { isDef } from '../util'
+import { isDef, noop } from '../util'
 import Dep from './Dep'
 
 let wId = 0
 const queue = []
-const has = {}
+let has = {}
+let waiting = false
 Dep.target = null
 export default class Watcher {
-  constructor(vm, fn) {
+  constructor(vm, getter, cb = noop, options) {
     this.id = wId++
+    this.active = true
+    this.vm = vm
+    this.expression = getter.toString()
+    // 管理依赖
     this.deps = []
     this.depsId = new Set()
-    this.vm = vm
-    this.expression = fn.toString()
     this.newDeps = []
     this.newDepsId = new Set()
-    this.getter = fn
+    this.getter = getter // 获取值的函数 || vm._update(vm._render())
+    // $watch 的参数
+    this.cb = cb
+    this.deep = !!options?.deep
+    this.immediate = !!options?.immediate
     this.value = this.get()
   }
 
   get () {
     Dep.target = this
-
+    
+    const vm = this.vm
+    let value
     try {
-      console.log('执行render(),new watcher')
-      this.getter.call(this.vm)
+      console.log('value = watcher.getter()')
+      value = this.getter.call(vm, vm)
     } catch (e) {
       console.error(e, `\n${this.expression}`)
     }
 
     Dep.target = null
     this.clearDep()
+    return value
   }
 
   addDep (dep) {
@@ -63,16 +73,43 @@ export default class Watcher {
   }
 
   run () {
-    this.value = this.get()
+    const value = this.get()
+    // 对比有变化就执行回调
+    const oldVal = this.value
+    // deep 发生了变化无论相不相等都执行回调
+    if (oldVal !== value || typeof value === 'object' || this.deep) {
+      this.value = value
+
+      const cb = this.cb
+      try {// cb在$watch里可能传入非函数
+        cb.call(this.vm, oldVal, value)
+      } catch (err) {
+        console.warn(err, `\nwatcher callback: ${cb}`)
+      }
+    }
   }
 
   update () {
     const id = this.id
-    console.log(has,has[id],isDef(has[id]))
+
     if (!isDef(has[id])) {
       has[id] = true
       queue.push(this)
-      Promise.resolve().then(flushSchedulerQueue)
+      if (!waiting) {
+        waiting = true
+        // 开启微任务 宏任务执行完 queue添加完调用
+        Promise.resolve().then(flushSchedulerQueue)
+      }
+    }
+  }
+
+  unwatch(){
+    if (!active) return // 去除后再次调用
+    
+    // 数值变化调用依赖时执行回调，deps是最新的，watcher实例生成完毕
+    let i = this.deps.length
+    while (i--) {
+      this.deps[i].removeSub(this)
     }
   }
 }
@@ -80,7 +117,11 @@ export default class Watcher {
 function flushSchedulerQueue () {
   for (let i = 0; i < queue.length; i++) {
     const watcher = queue[i]
-    has[watcher.id] = null
     watcher.run()
   }
+
+  // 重置
+  has = {}
+  queue.length = 0
+  waiting = false
 }

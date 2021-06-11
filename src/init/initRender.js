@@ -27,7 +27,7 @@ const protect = function (name, ref) {
 }
 
 export function initRender (vm) {
-  vm.$vnode = vm._vnode = null
+  vm._vnode = null
   vm._c = (a, b, c, d) => createElement(a, b, c, d)
   vm.$createElement = createElement
 }
@@ -73,6 +73,6 @@ export class baseVue {
   }
 
   _empty () {
-    return emptyVnode()
+    return emptyVnode
   }
 }
