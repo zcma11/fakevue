@@ -1,21 +1,24 @@
-import { query, isEmptyObj$1 } from './util'
-import parse from './compiler/parse'
-import initState from './init/initState'
+import { query, isEmptyObj$1, isDef, parsePath } from './util'
+import { initState } from './init/initState'
 import initEvents from './init/initEvents'
 import { initRender, baseVue } from './init/initRender'
-import compile from './compiler/complie'
 import Watcher from './reactivity/Watcher'
-import createRenderFunction from './compiler/render'
 import patch from './vnode/patch'
+import initGlobalAPI from './globalAPI'
+import { initComponentOptions, mergeOptions } from './init/initOptions'
+import compiler from './compiler'
+import { stateMixin } from './init/init'
 
 let id = 0
-export default class FakeVue extends baseVue {
+class FakeVue extends baseVue {
   constructor(options = {}) {
     super()
     this.id = id++
-    this._vue = FakeVue
-    this.$options = options
+    this._self = this
     this.$root = this
+    this.$parent = options._parent
+    this.$children = []
+    this.$ref = {}
     this.init(options)
   }
 
@@ -23,6 +26,13 @@ export default class FakeVue extends baseVue {
     if (isEmptyObj$1(options)) return
 
     // beforecreate
+
+    if (options._isComponent) { // 是组件的话，组件原型上有 FakeVue.options的内容，不需要合并
+      // 继承组件的options
+      this.$options = initComponentOptions(this.constructor, options)
+    } else { // 合并 FakeVue.options 上的内容
+      this.$options = mergeOptions(this.constructor.options, options)
+    }
 
     initState(this)
     initEvents(this)
@@ -35,21 +45,26 @@ export default class FakeVue extends baseVue {
     }
   }
 
+  /* 基本功能的方法 */
+
   $mount (el) {
-    el = query(el)
+    el = query(el) // queryselector || div || undefined
     this.$el = el
-    const ast = parse(el.outerHTML, el.parentElement, el.nextSibling)
-    console.log(ast)
-    // 生成render
-    // 执行render收集依赖
-    // render生成vnode 然后对比 然后渲染成真正的dom
-    // 这样依赖改变下次执行时就是自动生成vnode然后到真实dom，自动调用render
+    // 没有render，自己解析模板
     if (!this.$options.render) {
-      const code = compile(ast, this.$options)
-      const render = createRenderFunction(code)
+      let template = this.$options.template
+
+      if (!isDef(template)) {
+        try {
+          template = el.outerHTML
+        } catch {
+          console.error('如果el没有提供，请提供template属性')
+        }
+      }
+
       // Vue.prototype._render
       // this.render 是options里面的用户传入的模板渲染方法。二选一。
-      this.$options.render = render
+      this.$options.render = compiler(template)
     }
 
     // beforeMount
@@ -67,7 +82,12 @@ export default class FakeVue extends baseVue {
   }
 
   _update (vnode) {
-    console.log('vm._render():vnode: ',vnode)
+    console.log('vm._render():vnode: ', vnode)
+    // 空模板 没有解析到就没有孩子，只是空div
+    if (vnode?.children.length === 1) {
+      // 提取一层，只有一个根的时候，$el会保存到dom
+      vnode = vnode.children[0]
+    }
     // 更新保存的vnode
     const oldVnode = this._vnode
     this._vnode = vnode
@@ -100,15 +120,15 @@ export default class FakeVue extends baseVue {
     }
 
     return function unwatch () {
-      watcher.unwatch
+      watcher.unwatch()
     }
   }
 }
 
-function parsePath (exp) {
-  const keys = exp.split(`.`)
-  return function getter (val) {
-    keys.forEach(k => val = val[k])
-    return val
-  }
-}
+initGlobalAPI(FakeVue)
+
+// 主要的已经提取出来在上面的类里
+/* 额外提供的$属性方法 */
+stateMixin(FakeVue)
+
+export default FakeVue

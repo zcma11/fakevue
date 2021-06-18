@@ -27,7 +27,7 @@ export default class Watcher {
 
   get () {
     Dep.target = this
-    
+
     const vm = this.vm
     let value
     try {
@@ -103,9 +103,9 @@ export default class Watcher {
     }
   }
 
-  unwatch(){
+  unwatch () {
     if (!active) return // 去除后再次调用
-    
+
     // 数值变化调用依赖时执行回调，deps是最新的，watcher实例生成完毕
     let i = this.deps.length
     while (i--) {
@@ -115,6 +115,8 @@ export default class Watcher {
 }
 
 function flushSchedulerQueue () {
+  // 按照 new watcher的顺序排列，更新队列顺序可能是打乱的
+  queue.sort((a, b) => a.id - b.id)
   for (let i = 0; i < queue.length; i++) {
     const watcher = queue[i]
     watcher.run()

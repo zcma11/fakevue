@@ -1,9 +1,16 @@
 import { isDef } from '../util'
 import { updateData } from './source'
 import updateChildren from './updateChildren'
+import updateComponents from './updateComponents'
 
 export default function patchVnode (oldVnode, newVnode) {
   const elm = (newVnode.elm = oldVnode.elm) // 复用
+
+  if (newVnode.componentOptions) {
+    // 复用vm
+    const instance = newVnode.componentInstance = oldVnode.componentInstance
+    updateComponents(newVnode.componentOptions, instance)
+  }
 
   //文本节点
   if (isDef(newVnode.text)) {
@@ -19,6 +26,8 @@ export default function patchVnode (oldVnode, newVnode) {
   // 旧的有孩子，新的没有，移除
   // 旧的有孩子，新的有，对比
   // 排除都没有孩子的
+
+  // component没有children 跳过
   const oldCh = oldVnode.children
   const newCh = newVnode.children
   if (isDef(oldCh) && isDef(newCh)) {

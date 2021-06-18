@@ -20,7 +20,6 @@ export default function observe (value) {
 
   if (!(value.__ob__ && value.__ob__ instanceof Observer)) {
     // 没有监视过
-    // 需要使用ob实例吗
-    const ob = new Observer(value)
+    new Observer(value)
   }
 }

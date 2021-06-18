@@ -74,7 +74,7 @@ function pieceStyle (attrs) {
   }
 }
 
-const handlerCache = createCache(config => config)
+const handlerCache = createCache((_, config) => config)
 
 function updateDomListener (oldVnode, vnode) {
   if (!oldVnode.data.on && !vnode.data.on) {

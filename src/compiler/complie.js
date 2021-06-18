@@ -4,9 +4,9 @@ const expresion = /\{\{(.*?)\}\}/g
 const forReg = /\(?([a-zA-Z]*)(?:,\s)?([a-zA-Z]*)?(?:,\s)?([a-zA-Z]*)?\)?\sin\s([a-zA-Z]*)$/
 const argsReg = /\(.*\)$/
 
-export default function compile (el, options) {
+export default function compile (el) {
   // _c('button',{key:g,attrs:{"id":"d"},on:{"click":add}},[_v("click")])
-  let code = generateElement(el, options)
+  let code = generateElement(el)
 
   return `with(this){return ${code}}`
 }

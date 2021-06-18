@@ -92,8 +92,10 @@ function findSameVnode (vnode, oldCh, start, end) {
 function removeElm (parent, oldVnode) {
   const elm = oldVnode.elm
 
-  for (let i = 0; i < destroy.length; i++) {
-    destroy[i](oldVnode, emptyVnode)
+  if (elm.nodeType === 1) { // 文本直接去除
+    for (let i = 0; i < destroy.length; i++) {
+      destroy[i](oldVnode, emptyVnode)
+    }
   }
 
   parent.removeChild(elm)

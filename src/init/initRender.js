@@ -1,7 +1,14 @@
-import { isDef, isObj } from "../util"
+import { isDef, isObj, isReservedTag, matchVariousName } from "../util"
 import { Vnode, createTextVnode, emptyVnode } from '../vnode/Vnode'
 
-const createElement = (a, b, c, d) => {// tag,data,children,flat 
+/**
+ * @param a tag
+ * @param b data
+ * @param c childrn
+ * @param d flat
+ * @returns vnode
+ */
+const createElement = (vm, a, b, c, d) => {
   if (typeof a !== 'string') throw new Error('the first param must be a string')
 
   if (isObj(b) && (isDef(c) && !Array.isArray(c))) {
@@ -17,29 +24,79 @@ const createElement = (a, b, c, d) => {// tag,data,children,flat
   }
 
   d && (c = c.flat())
-  return new Vnode(a, b, c, undefined, undefined)
+
+  let Ctor
+  if (isReservedTag(a)) {
+    return new Vnode(a, b, c, undefined, undefined, vm)
+  } else if (isDef(Ctor = getComponentCtor(vm.$options, a))) {
+    return createComponentVnode(vm, Ctor, b, c)
+  }
 }
 
-const protect = function (name, ref) {
-  const get = () => this[ref]
-  const set = () => console.warn(`${name} is readonly`)
-  Object.defineProperty(this, name, { get, set })
+function getComponentCtor (options, name) {
+  const { components } = options
+  // aaa-bb  aaaBb
+  for (let i = 0, l = matchVariousName.length; i < l; i++) {
+    let Ctor
+    const variousName = matchVariousName[i](name)
+    if (Ctor = components[variousName]) {
+      return Ctor
+    }
+  }
+
+  throw new Error(`没有找到组件 ${name} , ${options}`)
+}
+
+function createComponentVnode (vm, Ctor, data, children) {
+  const tagName = `vue-component-${Ctor.id}`
+  
+  data = data ?? {}
+  const propsData = extractPropsData(data.attrs, Ctor.options.props)
+  // 里面包含了 emit的外部 vm 的方法
+  // 保存到 componentOptions里面
+  // 后续可以查找children 有没有绑定同名的方法，
+  // 然后把方法赋值绑定给children
+  const listener = data.on
+
+  if (data.show || data.domProps) {
+    console.warn('组件没有根节点，所以组件上的 v-show, v-html, v-text 将会失效。')
+  }
+
+  return new Vnode(
+    tagName,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    vm,
+    { Ctor, propsData, listener, children }
+  )
+}
+
+/**
+ * @param attrs 组件标签上传递的属性
+ * @param propsData 组件内部的接收的props
+ */
+function extractPropsData (attrs, propsData) {
+  const res = {}
+
+  // 只保留传递的数据
+  for (const key in attrs) {
+    if (key in propsData) {
+      res[key] = attrs[key]
+    }
+  }
+
+  return res
 }
 
 export function initRender (vm) {
   vm._vnode = null
-  vm._c = (a, b, c, d) => createElement(a, b, c, d)
+  vm._c = (a, b, c, d) => createElement(vm, a, b, c, d)
   vm.$createElement = createElement
 }
 
 export class baseVue {
-  constructor() {
-    console.log(this)
-    protect.call(this, '$data', '_data')
-    protect.call(this, '$props', '_props')
-    // protect.call(this, '$createElement', '_props')
-  }
-
   _txt (text) {
     return createTextVnode(text)
   }

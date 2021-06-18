@@ -1,12 +1,12 @@
 import { isDef, makeMap } from '../util'
 import { createASTElement, createASTText } from './source'
 
-const startTagReg = /^\<[\s\n]*([a-zA-Z1-6]+)[\s\n]*(.*?)[\s\n]*>/s
+const startTagReg = /^\<[\s\n]*([\-a-zA-Z1-6]+)[\s\n]*(.*?)[\s\n]*>/s
 const endTagReg = /^\<\/(.*?)>/
 const commontReg = /^\<\!--(.*?)--\>/s
 const attrsReg = /[\s\n]*([@#:\-a-zA-Z]+)(?:=['"](.*?)['"])?/g
 const directives = makeMap('if,for,else,elseif,model,text,html')
-const vueDirectiveReg = /^v-|^@|^:/
+// const vueDirectiveReg = /^v-|^@|^:/
 const bindReg = /(?:^v-bind:|^:)(.*)/
 const onReg = /(?:^v-on:|^@)(.*)/
 const unaryTag = makeMap('area,base,br,embed,frame,hr,img,input,link,meta')
@@ -111,11 +111,12 @@ function parseHTML (html, { startTag, closeTag, parseText }) {
   }
 }
 
-export default function parse (html, currentParent) {
-  if (!html) return createASTElement('div', currentParent)
+export default function parse (html) {
+  if (!html) return createASTElement('div')
 
-  let stack = []
-  let root
+  let root, currentParent
+  root = currentParent = createASTElement('documentFragment', undefined, [])
+  let stack = [root]
 
   parseHTML(html, { startTag, closeTag, parseText })
 
@@ -125,7 +126,6 @@ export default function parse (html, currentParent) {
     processAttribute(element)
     currentParent = element
     stack.push(element)
-    !root && (root = element)
   }
 
   function closeTag ({ end }) {

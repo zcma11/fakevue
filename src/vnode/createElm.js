@@ -4,9 +4,18 @@ import { updateData } from './source'
 
 export default function createElm (vnode) {
   const { tag, data, children, text } = vnode
-  if (!tag) return vnode.elm = document.createTextNode(text)
+  if (isDef(text)) return (vnode.elm = document.createTextNode(text))
+  if (!tag) return (vnode.elm = document.createComment(''))
+  // 是组件
+  if (tag.includes('vue-component')) {
+    return createComponent(vnode)
+  }
 
-  let dom = document.createElement(tag)
+  let dom =
+    tag === 'documentFragment'
+      ? document.createDocumentFragment()
+      : document.createElement(tag)
+
   vnode.elm = dom
 
   isDef(children) && createChildren(dom, children)
@@ -16,6 +25,8 @@ export default function createElm (vnode) {
       updateData[i](emptyVnode, vnode)
     }
   }
+
+  return dom
 }
 
 function createChildren (parent, children) {
@@ -26,4 +37,24 @@ function createChildren (parent, children) {
       parent.appendChild(child.elm)
     }
   })
+}
+
+function createComponent (vnode) {
+  let instance = vnode.componentInstance
+  if (!instance) {
+    instance = vnode.componentInstance = createComponentInstance(vnode)
+  }
+
+  instance.$mount()
+  vnode.elm = instance.$el
+}
+
+function createComponentInstance (vnode) {
+  const { Ctor } = vnode.componentOptions
+  const options = {
+    _isComponent: true,
+    _selfVnode: vnode
+  }
+
+  return new Ctor(options)
 }

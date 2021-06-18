@@ -1,11 +1,12 @@
-import { Vnode } from "./Vnode";
+import { Vnode } from "./Vnode"
 import createElm from './createElm'
 import patchVnode from './patchVnode'
 import { sameVnode } from './source'
+import { isDef } from "../util"
 
 export default function patch (oldVnode, vnode) {
   // 没获取到 el // 创作组件的时候
-  if (!oldVnode) {
+  if (!isDef(oldVnode)) {
     return createElm(vnode)
   }
 
@@ -17,8 +18,8 @@ export default function patch (oldVnode, vnode) {
   if (!isRealDom && sameVnode(oldVnode, vnode)) {
     patchVnode(oldVnode, vnode)
   } else {
-    createElm(vnode)
-    replaceElm(oldVnode.elm, vnode.elm)
+    const elm = createElm(vnode)
+    replaceElm(oldVnode.elm, elm)
   }
 
   return vnode.elm
