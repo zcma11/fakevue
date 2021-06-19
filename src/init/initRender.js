@@ -48,23 +48,27 @@ function getComponentCtor (options, name) {
 }
 
 function createComponentVnode (vm, Ctor, data, children) {
+  if (!isDef(Ctor)) return
+
+  if (isObj(Ctor)) {
+    Ctor = vm._base.extend(Ctor)
+  }
+
   const tagName = `vue-component-${Ctor.id}`
-  
-  data = data ?? {}
-  const propsData = extractPropsData(data.attrs, Ctor.options.props)
+  const propsData = extractPropsData(data?.attrs, Ctor.options.props)
   // 里面包含了 emit的外部 vm 的方法
   // 保存到 componentOptions里面
   // 后续可以查找children 有没有绑定同名的方法，
   // 然后把方法赋值绑定给children
-  const listener = data.on
+  const listener = data?.on
 
-  if (data.show || data.domProps) {
+  if (data?.show || data?.domProps) {
     console.warn('组件没有根节点，所以组件上的 v-show, v-html, v-text 将会失效。')
   }
 
   return new Vnode(
     tagName,
-    undefined,
+    data,
     undefined,
     undefined,
     undefined,
@@ -78,6 +82,7 @@ function createComponentVnode (vm, Ctor, data, children) {
  * @param propsData 组件内部的接收的props
  */
 function extractPropsData (attrs, propsData) {
+  if (!attrs) return
   const res = {}
 
   // 只保留传递的数据
@@ -131,5 +136,29 @@ export class baseVue {
 
   _empty () {
     return emptyVnode
+  }
+
+  _slotTemp (scopedSlots) {
+    const res = {}
+
+    scopedSlots.forEach(({ key, fn }) => {
+      res[key] = fn
+    })
+
+    return res
+  }
+
+  _slot (name, fallback, props) {
+    const scopedSlots = this.$scopedSlots
+
+    if (!scopedSlots[name]) {
+      return fallback
+    }
+
+    if (Array.isArray(scopedSlots)) {
+      // vnode里面的children
+      return scopedSlots
+    }
+    return scopedSlots[name](props)
   }
 }

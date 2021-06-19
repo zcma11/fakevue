@@ -77,7 +77,12 @@ class FakeVue extends baseVue {
   }
 
   _render () {
-    const render = this.$options.render
+    const { $options: { _selfVnode, render } } = this
+    if (_selfVnode) {
+      // 如果有配置 v-slot的模板，会存在data里面
+      // 没有就直接去找vnode的children
+      this.$scopedSlots = _selfVnode.data?.scopedSlots ?? _selfVnode.componentOptions.children
+    }
     return render.call(this, this.$createElement)
   }
 

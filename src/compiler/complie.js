@@ -24,12 +24,28 @@ function generateElement (el) {
     return handleIf(el)
   }
 
+  if (el.tag === 'slot') {
+    return genSlot(el)
+  }
+
   // _c('div',{ attrs:{ id: '#app' },on: {} },children)
   return `_c(
     '${el.tag}'
     ${handleData(el)}
     ${generateChildren(el.children)}
     )`
+}
+
+function genSlot ({ attrs, dynamicAttrs, children }) {
+  delete dynamicAttrs.key
+  // slot 的名字
+  const name = attrs.find(({ key }) => key === 'name')?.value
+  // 后备内容
+  const fallback = ',' + (generateChildren(children).slice(1) || 'null')
+  // slot 上传入的数据 <slot :msg="123"></slot>
+  const props = handleAttrs([], dynamicAttrs).slice(6) || '{}'
+
+  return `_slot('${name ?? 'default'}'${fallback},${props})`
 }
 
 function handleFor (el) {
@@ -71,14 +87,14 @@ function generateChildren (children) {
   let flat = false
   let code = []
   children.forEach(child => {
-    if (child['v-for']) flat = true
+    if (child['v-for'] || child.tag === 'slot') flat = true
     if (child.type === 1) code.push(generateElement(child)) // for --> []
     if (child.type === 3) code.push(generateText(child))
   })
 
   // _c('div')
   // [_c('div'),_c('div'),_c('div')]
-  return code.length > 0 ? `,[${code.join(',')}],${flat}` : ''
+  return code.length > 0 ? `,[${code.join(',')}]${flat ? `,${flat}` : ''}` : ''
 }
 
 function generateText ({ text }) {
@@ -117,6 +133,10 @@ function handleData (el) {
     data += `show:${!!el['v-show']},`
   }
 
+  if (el.scopedSlots) {
+    data += handleSlot(el)
+  }
+
   data += handledomProps(el)
 
   if (attrs.length || !isEmptyObj$1(dynamicAttrs)) {
@@ -130,6 +150,21 @@ function handleData (el) {
   return data ? `,{${data.slice(0, -1)}}` : ''
 }
 
+function handleSlot (el) {
+  const { scopedSlots } = el
+  let slots = ''
+  for (const key in scopedSlots) {
+    // <template v-slot:main="{msg}">{{msg}}</template>
+    // name: main
+    // value: {msg}
+    const { slot: { name, value }, children } = scopedSlots[key]
+    // v-slot的名字
+    slots += `{key:'${name}', fn: (${value}) => ${generateChildren(children).slice(1)}},`
+  }
+
+  return slots ? `scopedSlots: _slotTemp([${slots.slice(0, -1)}]),` : ''
+}
+
 function handledomProps (el) {
   let domProps = ''
 
@@ -139,13 +174,9 @@ function handledomProps (el) {
     domProps += `value:${value},`
     // 有同名会进行覆盖
     el.events['input'] = `($event) => {${value}=$event.target.value}` // 闭包 value
-  }
-
-  if (el['v-text']) {
+  } else if (el['v-text']) {
     domProps += `textContent: ${el['v-text']},`
-  }
-
-  if (el['v-html']) {
+  } else if (el['v-html']) {
     domProps += `innerHTML: ${el['v-html']},`
   }
 

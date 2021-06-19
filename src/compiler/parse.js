@@ -9,6 +9,7 @@ const directives = makeMap('if,for,else,elseif,model,text,html')
 // const vueDirectiveReg = /^v-|^@|^:/
 const bindReg = /(?:^v-bind:|^:)(.*)/
 const onReg = /(?:^v-on:|^@)(.*)/
+const slotReg = /(?:^v-slot:?|^#)(.*)/
 const unaryTag = makeMap('area,base,br,embed,frame,hr,img,input,link,meta')
 
 function parseHTML (html, { startTag, closeTag, parseText }) {
@@ -133,16 +134,27 @@ export default function parse (html) {
     stack.length--
     const lasest = stack[stack.length - 1]
     if (lasest) {
-      processIfConditions(lasest.children, currentParent) ||
+      collectSlot(lasest, currentParent) ||
+        processIfConditions(lasest.children, currentParent) ||
         lasest.children.push(currentParent)
 
       currentParent = lasest
     }
   }
 
+  function collectSlot (parent, element) {
+    const name = element?.slot?.name
+    if (name) {
+      // 把组件标签内的内容添加到 scopedSlots里面
+      (parent.scopedSlots = parent.scopedSlots ?? {})[name] = element
+    }
+
+    return !!name
+  }
+
   // 传进去children 在里面从最后一个开始找
-  function processIfConditions (sibling, element) {
-    let i = sibling.length
+  function processIfConditions (siblings, element) {
+    let i = siblings.length
     let hasElse = isDef(currentParent['v-else']) || isDef(currentParent['v-else-if'])
 
     if (hasElse) {
@@ -162,7 +174,7 @@ export default function parse (html) {
       }
     }
 
-    sibling.length = i
+    siblings.length = i
     return hasElse
   }
 
@@ -176,7 +188,7 @@ export default function parse (html) {
     const { attrs } = element
 
     // element.dynamicAttrs.key = ''
-    attrs.forEach(({ key, value }, index) => {
+    attrs.forEach(({ key, value='' }, index) => {
       let attr
 
       if ((attr = bindReg.exec(key))) {
@@ -186,6 +198,9 @@ export default function parse (html) {
       } else if (attr = directives(key.slice(2))) {
         if (key === 'v-model' && element.tag !== 'input') return
         processDirecetive(key, value)
+      } else if (attr = slotReg.exec(key)) {
+        if (element.tag !== 'template') return
+        processSlot(attr, value)
       }
 
       attr && (attrs[index] = null)
@@ -210,6 +225,11 @@ export default function parse (html) {
       if (type === 'v-if') {
         element.elseConditions = []
       }
+    }
+
+    function processSlot ([, name], value) {
+      // v-slot
+      element.slot = { name: name || 'default', value }
     }
   }
 

@@ -16,7 +16,7 @@ export const createASTText = ({ text, start, end }, parent) => {
   return {
     type: 3,
     parent,
-    text,
+    text: text.trim(),
     start,
     end
   }
