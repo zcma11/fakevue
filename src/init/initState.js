@@ -3,6 +3,7 @@ import { option, proxy, reactive } from '../reactivity/reactive'
 import Watcher from '../reactivity/Watcher'
 import { isDef, isObj, isServerRendering, mergeObj, noop } from '../util'
 import { isUpdatingComponents } from '../vnode/updateComponents'
+import Dep from '../reactivity/Dep'
 
 export function initState (vm) {
   const { props, methods, data, computed, watch } = vm.$options
@@ -172,6 +173,9 @@ function creatComputedGetter (key) {
   return function computedGetter () {
     const watcher = this._computedCache[key]
     if (isDef(watcher)) {
+      if (Dep.target) {
+        watcher.depend();
+      }
       return watcher.value
     }
   }

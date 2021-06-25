@@ -112,6 +112,13 @@ export default class Watcher {
       this.deps[i].removeSub(this)
     }
   }
+
+  depend () {
+    var i = this.deps.length
+    while (i--) {
+      this.deps[i].depend()
+    }
+  }
 }
 
 function flushSchedulerQueue () {
